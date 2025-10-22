@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PyPDF2 import PdfReader
 from openai import OpenAI
@@ -7,25 +7,23 @@ import faiss
 import numpy as np
 
 # -----------------------------
-# CONFIGURATION
+# CONFIG
 # -----------------------------
 app = Flask(__name__)
-CORS(app)
-
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins (for Vercel)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -----------------------------
-# LOAD & INDEX PDF CONTENT
+# LOAD AND INDEX PDF
 # -----------------------------
 def load_pdf_text(file_path):
     reader = PdfReader(file_path)
     text = ""
     for page in reader.pages:
-        text += page.extract_text() + "\n"
+        text += page.extract_text() or ""
     return text
 
 def chunk_text(text, chunk_size=800):
-    """Split large text into overlapping chunks for vector search."""
     words = text.split()
     chunks = []
     for i in range(0, len(words), chunk_size):
@@ -52,50 +50,48 @@ index.add(embeddings)
 print(f"✅ Indexed {len(chunks)} chunks from LABOR LAW.pdf")
 
 # -----------------------------
-# CHAT ENDPOINT
+# ASK ENDPOINT
 # -----------------------------
 @app.route("/ask", methods=["POST"])
 def ask():
-    user_input = request.json.get("question", "")
-    if not user_input:
-        return jsonify({"answer": "Please enter a valid question."})
+    data = request.json
+    user_question = data.get("question", "")
+    if not user_question.strip():
+        return jsonify({"answer": "Please enter a valid question."}), 400
 
-    # Create query embedding
-    query_emb = client.embeddings.create(input=user_input, model="text-embedding-3-small").data[0].embedding
+    # Search top chunks
+    query_emb = client.embeddings.create(input=user_question, model="text-embedding-3-small").data[0].embedding
     query_emb = np.array(query_emb).astype("float32").reshape(1, -1)
-
-    # Search for top 3 relevant chunks
     distances, indices = index.search(query_emb, k=3)
-    retrieved_text = "\n".join([chunks[i] for i in indices[0]])
+    context = "\n".join([chunks[i] for i in indices[0]])
 
-    # Generate a grounded answer
+    # Generate legal answer
     prompt = f"""
-You are a Saudi Labor Law expert. Answer ONLY using the information below.
-If the answer is not found, respond with "The document does not contain this information."
+You are a Saudi Labor Law expert.
+Answer ONLY using the text provided below.
+If the answer is not found, respond: "The document does not contain this information."
 
 Context:
-{retrieved_text}
+{context}
 
-Question: {user_input}
+Question: {user_question}
 Answer:
     """
 
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "system", "content": "You are a legal chatbot limited to the Saudi Labor Law PDF."},
-                  {"role": "user", "content": prompt}],
-        temperature=0
+        temperature=0,
+        messages=[
+            {"role": "system", "content": "You are a legal chatbot restricted to Saudi Labor Law."},
+            {"role": "user", "content": prompt}
+        ]
     )
 
     answer = completion.choices[0].message.content.strip()
     return jsonify({"answer": answer})
 
 # -----------------------------
-# FRONTEND ROUTE
+# MAIN ENTRY
 # -----------------------------
-@app.route("/")
-def serve_frontend():
-    return send_from_directory(".", "index.html")
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
