@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Labor Law Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      background: #004aad;
+      color: white;
+      padding: 20px;
+      margin: 0;
+    }
+    #chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 700px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow-y: auto;
+    }
+    .message {
+      margin: 10px 0;
+    }
+    .user { text-align: right; color: #004aad; }
+    .bot { text-align: left; color: #333; }
+    #input-area {
+      display: flex;
+      justify-content: center;
+      margin: 20px auto;
+      max-width: 700px;
+    }
+    input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      margin-left: 10px;
+      background: #004aad;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #00307a; }
+  </style>
+</head>
+<body>
+  <h1>Saudi Labor Law Chatbot</h1>
+
+  <div id="chat-container"></div>
+
+  <div id="input-area">
+    <input id="question" type="text" placeholder="Ask about the Saudi Labor Law..." />
+    <button onclick="ask()">Send</button>
+  </div>
+
+  <script>
+    async function ask() {
+      const question = document.getElementById("question").value;
+      if (!question) return;
+
+      const chatContainer = document.getElementById("chat-container");
+      chatContainer.innerHTML += `<div class='message user'><b>You:</b> ${question}</div>`;
+      document.getElementById("question").value = "";
+
+      const response = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const data = await response.json();
+
+      chatContainer.innerHTML += `<div class='message bot'><b>Bot:</b> ${data.answer}</div>`;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  </script>
+</body>
+</html>
