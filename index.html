@@ -3,47 +3,91 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Labor Law Chatbot</title>
+  <title>Saudi Labor Law Chatbot</title>
   <style>
+    :root {
+      --primary: #004aad;
+      --secondary: #f0f2f5;
+      --text: #1d1d1f;
+      --bot-bg: #e9efff;
+      --user-bg: #d1e7ff;
+    }
     body {
-      font-family: Arial, sans-serif;
-      background: #f8f9fa;
-      color: #333;
+      font-family: "Inter", Arial, sans-serif;
+      background: var(--secondary);
+      color: var(--text);
       margin: 0;
       padding: 0;
       display: flex;
       flex-direction: column;
       height: 100vh;
     }
-    h1 {
-      text-align: center;
-      background: #004aad;
+    header {
+      background: var(--primary);
       color: white;
-      padding: 20px;
-      margin: 0;
+      padding: 18px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
     #chat-container {
       flex: 1;
+      max-width: 850px;
+      margin: 0 auto;
+      width: 100%;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       display: flex;
       flex-direction: column;
-      max-width: 700px;
-      margin: 20px auto;
-      background: #fff;
       padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       overflow-y: auto;
+      scroll-behavior: smooth;
     }
     .message {
       margin: 10px 0;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      animation: fadeIn 0.3s ease-in;
     }
-    .user { text-align: right; color: #004aad; }
-    .bot { text-align: left; color: #333; }
+    .bot {
+      justify-content: flex-start;
+    }
+    .user {
+      justify-content: flex-end;
+    }
+    .bubble {
+      padding: 12px 16px;
+      border-radius: 18px;
+      max-width: 80%;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+    .bot .bubble {
+      background: var(--bot-bg);
+      border-bottom-left-radius: 4px;
+    }
+    .user .bubble {
+      background: var(--user-bg);
+      border-bottom-right-radius: 4px;
+    }
+    .timestamp {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+      text-align: right;
+    }
     #input-area {
       display: flex;
       justify-content: center;
-      margin: 20px auto;
-      max-width: 700px;
+      align-items: center;
+      background: white;
+      padding: 15px;
+      border-top: 1px solid #ddd;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
     }
     input {
       flex: 1;
@@ -51,47 +95,139 @@
       border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 16px;
+      outline: none;
+      transition: 0.2s;
+    }
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(0,74,173,0.15);
     }
     button {
       margin-left: 10px;
-      background: #004aad;
+      background: var(--primary);
       color: white;
       border: none;
-      padding: 12px 20px;
+      padding: 12px 24px;
       border-radius: 8px;
       cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      transition: background 0.2s ease;
     }
     button:hover { background: #00307a; }
+    footer {
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+      padding: 8px 0;
+    }
+    .typing {
+      display: inline-block;
+      background: var(--bot-bg);
+      padding: 8px 12px;
+      border-radius: 14px;
+    }
+    .dot {
+      height: 6px;
+      width: 6px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: inline-block;
+      animation: blink 1.4s infinite both;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; }
+      40% { opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 600px) {
+      #chat-container { border-radius: 0; box-shadow: none; }
+      button { padding: 10px 16px; font-size: 14px; }
+    }
   </style>
 </head>
 <body>
-  <h1>Saudi Labor Law Chatbot</h1>
+  <header>Saudi Labor Law Chatbot</header>
 
   <div id="chat-container"></div>
 
   <div id="input-area">
-    <input id="question" type="text" placeholder="Ask about the Saudi Labor Law..." />
+    <input id="question" type="text" placeholder="Ask about the Saudi Labor Law..." onkeypress="handleKey(event)" />
     <button onclick="ask()">Send</button>
   </div>
 
+  <footer>Powered by OpenAI • © 2025 Saudi Labor Law Bot</footer>
+
   <script>
+    const backendURL = "https://lawbot-production-31ab.up.railway.app"; // ✅ Backend link
+
+    function timestamp() {
+      const now = new Date();
+      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function appendMessage(role, text) {
+      const chat = document.getElementById("chat-container");
+      const msg = document.createElement("div");
+      msg.className = `message ${role}`;
+      msg.innerHTML = `
+        <div class="bubble">${text}</div>
+        <div class="timestamp">${timestamp()}</div>
+      `;
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function showTyping() {
+      const chat = document.getElementById("chat-container");
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "message bot typing-indicator";
+      typingDiv.innerHTML = `
+        <div class="typing">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+      `;
+      chat.appendChild(typingDiv);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function removeTyping() {
+      const typing = document.querySelector(".typing-indicator");
+      if (typing) typing.remove();
+    }
+
     async function ask() {
-      const question = document.getElementById("question").value;
+      const input = document.getElementById("question");
+      const question = input.value.trim();
       if (!question) return;
 
-      const chatContainer = document.getElementById("chat-container");
-      chatContainer.innerHTML += `<div class='message user'><b>You:</b> ${question}</div>`;
-      document.getElementById("question").value = "";
+      appendMessage("user", question);
+      input.value = "";
 
-      const response = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question })
-      });
-      const data = await response.json();
+      showTyping();
 
-      chatContainer.innerHTML += `<div class='message bot'><b>Bot:</b> ${data.answer}</div>`;
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      try {
+        const res = await fetch(`${backendURL}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+        const data = await res.json();
+        removeTyping();
+        appendMessage("bot", data.answer || "No response received.");
+      } catch (err) {
+        removeTyping();
+        appendMessage("bot", "⚠️ Unable to reach the server. Please try again later.");
+      }
+    }
+
+    function handleKey(e) {
+      if (e.key === "Enter") ask();
     }
   </script>
 </body>
