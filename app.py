@@ -60,13 +60,16 @@ def ask():
         return jsonify({"answer": "Please enter a valid question."}), 400
 
     # Search top chunks
-    query_emb = client.embeddings.create(input=user_question, model="text-embedding-3-small").data[0].embedding
+    query_emb = client.embeddings.create(
+        input=user_question,
+        model="text-embedding-3-small"
+    ).data[0].embedding
     query_emb = np.array(query_emb).astype("float32").reshape(1, -1)
-    distances, indices = index.search(query_emb, k=3)
+    distances, indices = index.search(query_emb, k=5)
     context = "\n".join([chunks[i] for i in indices[0]])
 
-    # Generate legal answer
-  prompt = f"""
+    # Generate legal answer (improved flexible prompt)
+    prompt = f"""
 You are a Saudi Labor Law expert specializing in explaining and summarizing regulations 
 based strictly on the official Saudi Labor Law (provided below as context). 
 
@@ -87,7 +90,7 @@ Please provide your answer in a clear, helpful tone:
 
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
-        temperature=0,
+        temperature=0.3,
         messages=[
             {"role": "system", "content": "You are a legal chatbot restricted to Saudi Labor Law."},
             {"role": "user", "content": prompt}
@@ -101,4 +104,5 @@ Please provide your answer in a clear, helpful tone:
 # MAIN ENTRY
 # -----------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))  # ✅ Handles Railway dynamic ports
+    app.run(host="0.0.0.0", port=port)
