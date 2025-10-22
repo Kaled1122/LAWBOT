@@ -66,17 +66,24 @@ def ask():
     context = "\n".join([chunks[i] for i in indices[0]])
 
     # Generate legal answer
-    prompt = f"""
-You are a Saudi Labor Law expert.
-Answer ONLY using the text provided below.
-If the answer is not found, respond: "The document does not contain this information."
+  prompt = f"""
+You are a Saudi Labor Law expert specializing in explaining and summarizing regulations 
+based strictly on the official Saudi Labor Law (provided below as context). 
 
-Context:
+Your role is to:
+- Use the context to form accurate, clear, and practical answers.
+- You may paraphrase or summarize the relevant clauses to make them easier to understand.
+- If the question is broad, give a general explanation based on the closest related sections.
+- If the context clearly lacks an answer, politely say so, and suggest which part of the law may apply.
+
+CONTEXT (from the official Saudi Labor Law):
 {context}
 
-Question: {user_question}
-Answer:
-    """
+QUESTION:
+{user_question}
+
+Please provide your answer in a clear, helpful tone:
+"""
 
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
