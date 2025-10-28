@@ -37,7 +37,6 @@ else:
     print("📘 Indexing LABOR LAW.pdf...")
     pdf_text = load_pdf_text("LABOR LAW.pdf")
     chunks = chunk_text(pdf_text)
-
     embeddings = [
         client.embeddings.create(input=c, model="text-embedding-3-small").data[0].embedding
         for c in chunks
@@ -45,11 +44,9 @@ else:
     emb_array = np.array(embeddings).astype("float32")
     index = faiss.IndexFlatL2(len(embeddings[0]))
     index.add(emb_array)
-
     faiss.write_index(index, "law_index.faiss")
     with open("law_chunks.pkl", "wb") as f:
         pickle.dump(chunks, f)
-
     print(f"✅ Indexed and cached {len(chunks)} chunks.")
 
 # -----------------------------
@@ -114,7 +111,9 @@ Provide the answer in plain bullet points:
 
     answer = res.choices[0].message.content.strip()
 
-    # Clean up output and ensure dash bullets
+    # -----------------------------
+    # FIXED CLEANUP SECTION
+    # -----------------------------
     cleaned = (
         answer.replace("•", "-")
               .replace("*", "")
@@ -124,12 +123,17 @@ Provide the answer in plain bullet points:
               .strip()
     )
 
-    # Ensure each dash bullet starts on a new line
+    # Force every dash to start on a new line
     cleaned = cleaned.replace(". -", ".\n-")
+    cleaned = cleaned.replace(" - ", "\n- ")
+    cleaned = cleaned.replace("--", "-").replace("  ", " ")
 
-    # Split into lines and rebuild with proper newlines
+    # Split and rebuild with guaranteed single-line bullets
     lines = [line.strip() for line in cleaned.split("\n") if line.strip()]
-    bullet_text = "\n".join(f"- {line.lstrip('-').strip()}" for line in lines)
+    bullet_text = "\n".join(
+        f"- {line.lstrip('-').strip()}" if not line.strip().startswith("-") else line.strip()
+        for line in lines
+    )
 
     return jsonify({"answer": bullet_text})
 
