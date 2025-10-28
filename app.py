@@ -7,15 +7,12 @@ from openai import OpenAI
 import faiss
 import numpy as np
 
-# -----------------------------
-# CONFIG
-# -----------------------------
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -----------------------------
-# LOAD & INDEX PDF (with caching)
+# LOAD & INDEX PDF (CACHED)
 # -----------------------------
 def load_pdf_text(file_path):
     reader = PdfReader(file_path)
@@ -37,7 +34,6 @@ else:
     print("📘 Indexing LABOR LAW.pdf...")
     pdf_text = load_pdf_text("LABOR LAW.pdf")
     chunks = chunk_text(pdf_text)
-
     embeddings = [
         client.embeddings.create(input=c, model="text-embedding-3-small").data[0].embedding
         for c in chunks
@@ -51,7 +47,7 @@ else:
     print(f"✅ Indexed and cached {len(chunks)} chunks.")
 
 # -----------------------------
-# ASK ENDPOINT (Adaptive + Clean Output)
+# ASK ENDPOINT (Adaptive + Clean + Bulleted)
 # -----------------------------
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -60,35 +56,34 @@ def ask():
     if not user_question:
         return jsonify({"answer": "Please enter a valid question."}), 400
 
-    # Guardrail: refuse questions unrelated to Saudi Labor Law
-    off_topic_keywords = [
-        "python", "html", "javascript", "football", "movie", "recipe", "ai", "openai",
-        "weather", "love", "politics", "game", "health", "music", "device", "chatgpt"
+    # Off-topic filter
+    off_topic = [
+        "python","html","javascript","ai","football","recipe","music","love",
+        "openai","weather","device","politics","movie","game","chatgpt"
     ]
-    if any(k.lower() in user_question.lower() for k in off_topic_keywords):
+    if any(word in user_question.lower() for word in off_topic):
         return jsonify({"answer": "Sorry, I can only answer questions related to the Saudi Labor Law."})
 
-    # Adaptive mode
+    # Adaptive temperature
     wc = len(user_question.split())
     temperature = 0.2 if wc < 8 else 0.4 if wc < 20 else 0.7
 
-    # Retrieve top chunks
+    # Search relevant chunks
     query_emb = client.embeddings.create(input=user_question, model="text-embedding-3-small").data[0].embedding
     query_emb = np.array(query_emb).astype("float32").reshape(1, -1)
     _, idx = index.search(query_emb, k=5)
     context = "\n".join([chunks[i] for i in idx[0]])
 
-    # Prompt with strict formatting rules
+    # Prompt enforcing bullet output
     prompt = f"""
 You are a Saudi Labor Law expert.
-Answer strictly using the context below.
 
 Rules:
-- Only discuss Saudi Labor Law.
-- Never use Markdown or asterisks (**).
-- Use simple plain text with bullet points or short paragraphs.
-- Avoid any decorative characters like *, #, or underscores.
-- If the context does not contain an answer, reply with:
+- Only answer about Saudi Labor Law.
+- Write each key point on a new line, starting with a dash (-).
+- Do NOT use asterisks, numbers, or markdown.
+- Use simple plain text and bullet points.
+- If the law does not cover the question, respond:
   "This topic is not specified clearly in the Saudi Labor Law."
 
 CONTEXT:
@@ -97,7 +92,7 @@ CONTEXT:
 QUESTION:
 {user_question}
 
-Provide the answer below:
+Provide the answer in clear bullet points:
 """
 
     res = client.chat.completions.create(
@@ -111,16 +106,21 @@ Provide the answer below:
 
     answer = res.choices[0].message.content.strip()
 
-    # Safety clean-up (remove any leftover markdown)
-    clean_answer = (
-        answer.replace("*", "")
+    # Clean up output and ensure dash bullets
+    cleaned = (
+        answer.replace("•", "-")
+              .replace("*", "")
               .replace("_", "")
               .replace("#", "")
               .replace("**", "")
-              .replace("•", "-")
+              .strip()
     )
 
-    return jsonify({"answer": clean_answer})
+    # Automatically bullet any remaining lines
+    lines = [line.strip() for line in cleaned.split("\n") if line.strip()]
+    bullet_text = "\n".join(f"- {line}" if not line.startswith("-") else line for line in lines)
+
+    return jsonify({"answer": bullet_text})
 
 # -----------------------------
 # HEALTH CHECK
