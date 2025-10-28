@@ -1,258 +1,194 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saudi Labor Law Chatbot — Adaptive Mode</title>
-  <style>
-    :root {
-      --primary: #004aad;
-      --secondary: #f0f2f5;
-      --text: #1d1d1f;
-      --bot-bg: #e9efff;
-      --user-bg: #d1e7ff;
-      --bubble-shadow: rgba(0,0,0,0.05);
-    }
-
-    body.dark {
-      --primary: #007bff;
-      --secondary: #111;
-      --text: #f0f0f0;
-      --bot-bg: #1e293b;
-      --user-bg: #334155;
-      --bubble-shadow: rgba(255,255,255,0.08);
-      background: #0f172a;
-      color: var(--text);
-    }
-
-    body {
-      font-family: "Inter", Arial, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa, #e9efff);
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      transition: background 0.3s ease, color 0.3s ease;
-    }
-
-    header {
-      background: var(--primary);
-      color: white;
-      padding: 16px;
-      text-align: center;
-      font-weight: 600;
-      border-bottom-left-radius: 10px;
-      border-bottom-right-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      position: relative;
-    }
-
-    #dark-toggle {
-      position: absolute;
-      right: 12px;
-      top: 12px;
-      background: none;
-      border: none;
-      color: white;
-      font-size: 20px;
-      cursor: pointer;
-    }
-
-    #chat-container {
-      flex: 1;
-      max-width: 850px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      padding: 20px;
-      overflow-y: auto;
-      scroll-behavior: smooth;
-      transition: background 0.3s;
-    }
-    body.dark #chat-container { background: #0f172a; }
-
-    .message {
-      margin: 10px 0;
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-      animation: fadeIn 0.3s ease-in;
-    }
-    .bot { justify-content: flex-start; }
-    .user { justify-content: flex-end; }
-    .bubble {
-      padding: 12px 16px;
-      border-radius: 18px;
-      max-width: 80%;
-      font-size: 15px;
-      line-height: 1.4;
-      box-shadow: 0 2px 5px var(--bubble-shadow);
-    }
-    .bot .bubble { background: var(--bot-bg); border-bottom-left-radius: 4px; color: var(--text); }
-    .user .bubble { background: var(--user-bg); border-bottom-right-radius: 4px; color: var(--text); }
-    .timestamp { font-size: 11px; color: #888; margin-top: 4px; text-align: right; }
-
-    #input-area {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: white;
-      padding: 15px;
-      border-top: 1px solid #ddd;
-      position: sticky;
-      bottom: 0;
-      box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
-    }
-    body.dark #input-area { background: #1e293b; border-color: #334155; }
-
-    input {
-      flex: 1;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 16px;
-      outline: none;
-    }
-    body.dark input {
-      background: #334155;
-      color: white;
-      border-color: #475569;
-    }
-
-    button {
-      margin-left: 10px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 15px;
-      transition: background 0.2s ease;
-    }
-    button:hover { background: #00307a; }
-
-    footer {
-      text-align: center;
-      font-size: 12px;
-      color: #777;
-      padding: 10px 0;
-    }
-
-    .suggestion {
-      background: var(--bot-bg);
-      border: 1px solid #ccc;
-      color: var(--primary);
-      border-radius: 16px;
-      padding: 6px 12px;
-      margin: 4px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .suggestion:hover { background: var(--user-bg); }
-
-    #suggestions {
-      overflow-x: auto;
-      white-space: nowrap;
-      margin: 10px auto;
-      text-align: center;
-      padding-bottom: 5px;
-      max-width: 850px;
-    }
-
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    @media (max-width: 600px) {
-      .bubble { max-width: 90%; font-size: 14px; }
-      input { font-size: 14px; padding: 10px; }
-      button { padding: 10px 14px; font-size: 14px; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Saudi Labor Law Assistant — Adaptive Mode</title>
+<style>
+:root {
+  --primary:#0071e3;
+  --background:#f5f5f7;
+  --card-bg:rgba(255,255,255,0.7);
+  --text:#1d1d1f;
+  --bot-bg:rgba(240,242,245,0.8);
+  --user-bg:rgba(0,113,227,0.1);
+  --blur:blur(20px);
+}
+body.dark{
+  --primary:#0a84ff;
+  --background:#000;
+  --card-bg:rgba(28,28,30,0.75);
+  --text:#f5f5f7;
+  --bot-bg:rgba(40,40,45,0.8);
+  --user-bg:rgba(10,132,255,0.1);
+  --blur:blur(16px);
+  background:#000;
+  color:var(--text);
+}
+body{
+  font-family:"SF Pro Display","Inter",-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--background);
+  color:var(--text);
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  transition:background .4s ease,color .4s ease;
+}
+header{
+  text-align:center;
+  padding:18px 0;
+  font-size:1.3rem;
+  font-weight:600;
+  backdrop-filter:var(--blur);
+  background:var(--card-bg);
+  border-bottom:1px solid rgba(0,0,0,.05);
+  position:sticky;
+  top:0;
+  z-index:10;
+  box-shadow:0 2px 6px rgba(0,0,0,.05);
+}
+#dark-toggle{
+  position:absolute;right:18px;top:14px;
+  background:none;border:none;font-size:20px;
+  color:var(--primary);cursor:pointer;transition:transform .2s;
+}
+#dark-toggle:hover{transform:scale(1.1);}
+#chat-container{
+  flex:1;max-width:800px;margin:20px auto;width:100%;
+  padding:20px;border-radius:24px;background:var(--card-bg);
+  backdrop-filter:var(--blur);box-shadow:0 4px 25px rgba(0,0,0,.05);
+  overflow-y:auto;scroll-behavior:smooth;
+}
+.message{display:flex;margin:10px 0;align-items:flex-end;gap:10px;animation:fadeIn .3s ease-in;}
+.bot{justify-content:flex-start}.user{justify-content:flex-end}
+.bubble{padding:12px 18px;border-radius:18px;max-width:75%;line-height:1.5;
+  box-shadow:0 2px 8px rgba(0,0,0,.05);backdrop-filter:var(--blur);}
+.bot .bubble{background:var(--bot-bg);color:var(--text);}
+.user .bubble{background:var(--user-bg);color:var(--text);}
+#input-area{
+  display:flex;align-items:center;justify-content:center;padding:14px;
+  position:sticky;bottom:0;background:var(--card-bg);
+  backdrop-filter:var(--blur);border-top:1px solid rgba(0,0,0,.05);
+}
+input{
+  flex:1;border:none;background:rgba(255,255,255,.6);
+  padding:12px 16px;border-radius:12px;font-size:15px;outline:none;color:var(--text);
+  transition:all .2s;
+}
+body.dark input{background:rgba(255,255,255,.1);color:#f5f5f7;}
+button{
+  margin-left:10px;background:var(--primary);color:white;border:none;
+  padding:12px 20px;border-radius:10px;cursor:pointer;font-weight:500;transition:all .2s;
+}
+button:hover{opacity:.85;}
+#suggestions{
+  text-align:center;overflow-x:auto;white-space:nowrap;margin:10px auto;
+  max-width:800px;padding-bottom:5px;
+}
+.suggestion{
+  background:rgba(255,255,255,.6);border:1px solid rgba(0,0,0,.08);
+  color:var(--primary);border-radius:16px;padding:6px 14px;margin:4px;font-size:14px;
+  cursor:pointer;transition:all .2s;
+}
+.suggestion:hover{background:rgba(0,113,227,.15);}
+footer{text-align:center;font-size:13px;color:#999;padding:12px;backdrop-filter:var(--blur);background:var(--card-bg);}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+/* ---------- INTRO SCREEN ---------- */
+#intro{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  background:var(--background);color:var(--text);z-index:999;
+  transition:opacity .6s ease, transform .6s ease;
+}
+#intro.hidden{opacity:0;pointer-events:none;transform:scale(1.05);}
+#intro h1{font-size:2.2rem;font-weight:700;margin-bottom:10px;}
+#intro p{font-size:1rem;opacity:.8;margin-bottom:30px;}
+#start-btn{
+  background:var(--primary);color:white;border:none;padding:12px 28px;
+  border-radius:12px;font-size:16px;font-weight:500;cursor:pointer;
+  transition:background .3s;
+}
+#start-btn:hover{opacity:.9;}
+@media(max-width:600px){#intro h1{font-size:1.7rem;}#intro p{font-size:.9rem;}}
+</style>
 </head>
 <body>
-  <header>
-    Saudi Labor Law Assistant — Adaptive Mode
-    <button id="dark-toggle" onclick="toggleDark()">🌙</button>
-  </header>
+<header>
+  Saudi Labor Law Assistant — Adaptive Mode
+  <button id="dark-toggle" onclick="toggleDark()">🌙</button>
+</header>
 
-  <div id="suggestions">
-    <button class="suggestion" onclick="setQuestion('What are the working hours under Saudi Labor Law?')">Working Hours</button>
-    <button class="suggestion" onclick="setQuestion('How is overtime pay calculated?')">Overtime Pay</button>
-    <button class="suggestion" onclick="setQuestion('What are the rules for employee termination?')">Termination</button>
-    <button class="suggestion" onclick="setQuestion('How many annual leave days do employees get?')">Annual Leave</button>
-    <button class="suggestion" onclick="setQuestion('What is the end-of-service benefit?')">End of Service</button>
-  </div>
+<!-- Greeting Intro -->
+<div id="intro">
+  <h1>👋 Welcome to Your Legal Assistant</h1>
+  <p>Ask anything about the Saudi Labor Law and get clear, adaptive answers.</p>
+  <button id="start-btn" onclick="startChat()">Start Chat</button>
+</div>
 
-  <div id="chat-container"></div>
+<!-- Suggested Questions -->
+<div id="suggestions" style="display:none;">
+  <button class="suggestion" onclick="setQuestion('What are the working hours under Saudi Labor Law?')">Working Hours</button>
+  <button class="suggestion" onclick="setQuestion('How is overtime pay calculated?')">Overtime Pay</button>
+  <button class="suggestion" onclick="setQuestion('What are the rules for employee termination?')">Termination</button>
+  <button class="suggestion" onclick="setQuestion('How many annual leave days do employees get?')">Annual Leave</button>
+  <button class="suggestion" onclick="setQuestion('What is the end-of-service benefit?')">End of Service</button>
+</div>
 
-  <div id="input-area">
-    <input id="question" type="text" placeholder="Ask about the Saudi Labor Law..." onkeypress="handleKey(event)" />
-    <button onclick="ask()">Send</button>
-    <button onclick="clearChat()" style="background:#888;">Clear</button>
-  </div>
+<div id="chat-container"></div>
 
-  <footer>Powered by OpenAI • Made by <strong>Kaled Alenezi</strong> © 2025</footer>
+<div id="input-area" style="display:none;">
+  <input id="question" type="text" placeholder="Ask about the Saudi Labor Law..." onkeypress="handleKey(event)" />
+  <button onclick="ask()">Send</button>
+</div>
 
-  <script>
-    const backendURL = "https://lawbot-production-31ab.up.railway.app";
+<footer>Designed with 🍏 elegance • Made by <strong>Kaled Alenezi</strong> © 2025</footer>
 
-    function timestamp() {
-      const now = new Date();
-      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function appendMessage(role, text) {
-      const chat = document.getElementById("chat-container");
-      const msg = document.createElement("div");
-      msg.className = `message ${role}`;
-      msg.innerHTML = `<div class="bubble">${text}</div><div class="timestamp">${timestamp()}</div>`;
-      chat.appendChild(msg);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    async function ask() {
-      const input = document.getElementById("question");
-      const question = input.value.trim();
-      if (!question) return;
-      appendMessage("user", question);
-      input.value = "";
-      appendMessage("bot", "<em>Typing...</em>");
-
-      try {
-        const res = await fetch(`${backendURL}/ask`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question })
-        });
-        const data = await res.json();
-        const typing = document.querySelector(".bot em");
-        if (typing) typing.parentElement.parentElement.remove();
-        appendMessage("bot", data.answer || "No response received.");
-      } catch (err) {
-        appendMessage("bot", "⚠️ Unable to reach the server. Please try again later.");
-      }
-    }
-
-    function handleKey(e) {
-      if (e.key === "Enter") ask();
-    }
-
-    function clearChat() {
-      document.getElementById("chat-container").innerHTML = "";
-    }
-
-    function setQuestion(q) {
-      document.getElementById("question").value = q;
-      ask();
-    }
-
-    function toggleDark() {
-      document.body.classList.toggle("dark");
-      const icon = document.getElementById("dark-toggle");
-      icon.textContent = document.body.classList.contains("dark") ? "☀️" : "🌙";
-    }
-  </script>
+<script>
+const backendURL="https://lawbot-production-31ab.up.railway.app";
+function startChat(){
+  document.getElementById("intro").classList.add("hidden");
+  setTimeout(()=>{
+    document.getElementById("intro").style.display="none";
+    document.getElementById("suggestions").style.display="block";
+    document.getElementById("input-area").style.display="flex";
+  },600);
+}
+function appendMessage(role,text){
+  const chat=document.getElementById("chat-container");
+  const msg=document.createElement("div");
+  msg.className=`message ${role}`;
+  msg.innerHTML=`<div class="bubble">${text}</div>`;
+  chat.appendChild(msg);
+  chat.scrollTop=chat.scrollHeight;
+}
+async function ask(){
+  const input=document.getElementById("question");
+  const question=input.value.trim();
+  if(!question)return;
+  appendMessage("user",question);
+  input.value="";
+  appendMessage("bot","<em>Typing...</em>");
+  try{
+    const res=await fetch(`${backendURL}/ask`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question})
+    });
+    const data=await res.json();
+    const typing=document.querySelector(".bot em");
+    if(typing)typing.parentElement.remove();
+    appendMessage("bot",data.answer||"No response received.");
+  }catch(err){
+    appendMessage("bot","⚠️ Unable to reach the server.");
+  }
+}
+function handleKey(e){if(e.key==="Enter")ask();}
+function setQuestion(q){document.getElementById("question").value=q;ask();}
+function toggleDark(){
+  document.body.classList.toggle("dark");
+  document.getElementById("dark-toggle").textContent=document.body.classList.contains("dark")?"☀️":"🌙";
+}
+</script>
 </body>
 </html>
