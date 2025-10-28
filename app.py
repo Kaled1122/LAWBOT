@@ -1,4 +1,5 @@
 import os
+import pickle
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PyPDF2 import PdfReader
@@ -10,11 +11,11 @@ import numpy as np
 # CONFIG
 # -----------------------------
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins (for Vercel)
+CORS(app, resources={r"/*": {"origins": "*"}})
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -----------------------------
-# LOAD AND INDEX PDF
+# LOAD AND INDEX PDF (with caching)
 # -----------------------------
 def load_pdf_text(file_path):
     reader = PdfReader(file_path)
@@ -25,32 +26,38 @@ def load_pdf_text(file_path):
 
 def chunk_text(text, chunk_size=800):
     words = text.split()
-    chunks = []
-    for i in range(0, len(words), chunk_size):
-        chunk = " ".join(words[i:i + chunk_size])
-        chunks.append(chunk)
-    return chunks
+    return [" ".join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
 
-print("📘 Loading and indexing LABOR LAW...")
-pdf_text = load_pdf_text("LABOR LAW.pdf")
-chunks = chunk_text(pdf_text)
+# Load cached index or create a new one
+if os.path.exists("law_index.faiss") and os.path.exists("law_chunks.pkl"):
+    print("⚡ Loading cached index...")
+    index = faiss.read_index("law_index.faiss")
+    with open("law_chunks.pkl", "rb") as f:
+        chunks = pickle.load(f)
+else:
+    print("📘 Indexing LABOR LAW.pdf...")
+    pdf_text = load_pdf_text("LABOR LAW.pdf")
+    chunks = chunk_text(pdf_text)
 
-# Create embeddings
-embeddings = []
-for chunk in chunks:
-    emb = client.embeddings.create(input=chunk, model="text-embedding-3-small").data[0].embedding
-    embeddings.append(emb)
+    embeddings = []
+    for chunk in chunks:
+        emb = client.embeddings.create(
+            input=chunk, model="text-embedding-3-small"
+        ).data[0].embedding
+        embeddings.append(emb)
 
-embeddings = np.array(embeddings).astype("float32")
+    embeddings = np.array(embeddings).astype("float32")
+    index = faiss.IndexFlatL2(len(embeddings[0]))
+    index.add(embeddings)
 
-# Build FAISS index
-index = faiss.IndexFlatL2(len(embeddings[0]))
-index.add(embeddings)
+    faiss.write_index(index, "law_index.faiss")
+    with open("law_chunks.pkl", "wb") as f:
+        pickle.dump(chunks, f)
 
-print(f"✅ Indexed {len(chunks)} chunks from LABOR LAW.pdf")
+    print(f"✅ Indexed and cached {len(chunks)} chunks.")
 
 # -----------------------------
-# ASK ENDPOINT
+# ASK ENDPOINT (Adaptive Mode)
 # -----------------------------
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -59,42 +66,45 @@ def ask():
     if not user_question.strip():
         return jsonify({"answer": "Please enter a valid question."}), 400
 
-    # Search top chunks
+    # Adaptive mode: adjust temperature automatically
+    word_count = len(user_question.split())
+    if word_count < 8:
+        temperature = 0.2
+    elif word_count < 20:
+        temperature = 0.4
+    else:
+        temperature = 0.7
+
+    # Search relevant chunks
     query_emb = client.embeddings.create(
-        input=user_question,
-        model="text-embedding-3-small"
+        input=user_question, model="text-embedding-3-small"
     ).data[0].embedding
     query_emb = np.array(query_emb).astype("float32").reshape(1, -1)
     distances, indices = index.search(query_emb, k=5)
     context = "\n".join([chunks[i] for i in indices[0]])
 
-    # Generate legal answer (improved flexible prompt)
     prompt = f"""
-You are a Saudi Labor Law expert specializing in explaining and summarizing regulations 
-based strictly on the official Saudi Labor Law (provided below as context). 
+You are a Saudi Labor Law expert. Use only the official Saudi Labor Law context below to answer clearly and accurately.
 
-Your role is to:
-- Use the context to form accurate, clear, and practical answers.
-- You may paraphrase or summarize the relevant clauses to make them easier to understand.
-- If the question is broad, give a general explanation based on the closest related sections.
-- If the context clearly lacks an answer, politely say so, and suggest which part of the law may apply.
-
-CONTEXT (from the official Saudi Labor Law):
+CONTEXT:
 {context}
 
 QUESTION:
 {user_question}
 
-Please provide your answer in a clear, helpful tone:
+INSTRUCTIONS:
+- Answer directly, in plain language.
+- Summarize long clauses if needed.
+- If unclear in context, say "Not specified clearly in the law".
 """
 
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
-        temperature=0.3,
+        temperature=temperature,
         messages=[
             {"role": "system", "content": "You are a legal chatbot restricted to Saudi Labor Law."},
-            {"role": "user", "content": prompt}
-        ]
+            {"role": "user", "content": prompt},
+        ],
     )
 
     answer = completion.choices[0].message.content.strip()
@@ -104,5 +114,5 @@ Please provide your answer in a clear, helpful tone:
 # MAIN ENTRY
 # -----------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # ✅ Handles Railway dynamic ports
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
