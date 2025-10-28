@@ -15,7 +15,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -----------------------------
-# LOAD AND INDEX PDF (with caching)
+# LOAD & INDEX PDF (with caching)
 # -----------------------------
 def load_pdf_text(file_path):
     reader = PdfReader(file_path)
@@ -28,7 +28,6 @@ def chunk_text(text, chunk_size=800):
     words = text.split()
     return [" ".join(words[i:i + chunk_size]) for i in range(0, len(words), chunk_size)]
 
-# Load cached index or create a new one
 if os.path.exists("law_index.faiss") and os.path.exists("law_chunks.pkl"):
     print("⚡ Loading cached index...")
     index = faiss.read_index("law_index.faiss")
@@ -39,52 +38,58 @@ else:
     pdf_text = load_pdf_text("LABOR LAW.pdf")
     chunks = chunk_text(pdf_text)
 
-    embeddings = []
-    for chunk in chunks:
-        emb = client.embeddings.create(
-            input=chunk, model="text-embedding-3-small"
-        ).data[0].embedding
-        embeddings.append(emb)
-
-    embeddings = np.array(embeddings).astype("float32")
+    embeddings = [
+        client.embeddings.create(input=c, model="text-embedding-3-small").data[0].embedding
+        for c in chunks
+    ]
+    emb_array = np.array(embeddings).astype("float32")
     index = faiss.IndexFlatL2(len(embeddings[0]))
-    index.add(embeddings)
-
+    index.add(emb_array)
     faiss.write_index(index, "law_index.faiss")
     with open("law_chunks.pkl", "wb") as f:
         pickle.dump(chunks, f)
-
     print(f"✅ Indexed and cached {len(chunks)} chunks.")
 
 # -----------------------------
-# ASK ENDPOINT (Adaptive Mode)
+# ASK ENDPOINT (Adaptive + Clean Output)
 # -----------------------------
 @app.route("/ask", methods=["POST"])
 def ask():
     data = request.json
-    user_question = data.get("question", "")
-    if not user_question.strip():
+    user_question = data.get("question", "").strip()
+    if not user_question:
         return jsonify({"answer": "Please enter a valid question."}), 400
 
-    # Adaptive mode: adjust temperature automatically
-    word_count = len(user_question.split())
-    if word_count < 8:
-        temperature = 0.2
-    elif word_count < 20:
-        temperature = 0.4
-    else:
-        temperature = 0.7
+    # Guardrail: refuse questions unrelated to Saudi Labor Law
+    off_topic_keywords = [
+        "python", "html", "javascript", "football", "movie", "recipe", "ai", "openai",
+        "weather", "love", "politics", "game", "health", "music", "device", "chatgpt"
+    ]
+    if any(k.lower() in user_question.lower() for k in off_topic_keywords):
+        return jsonify({"answer": "Sorry, I can only answer questions related to the Saudi Labor Law."})
 
-    # Search relevant chunks
-    query_emb = client.embeddings.create(
-        input=user_question, model="text-embedding-3-small"
-    ).data[0].embedding
+    # Adaptive mode
+    wc = len(user_question.split())
+    temperature = 0.2 if wc < 8 else 0.4 if wc < 20 else 0.7
+
+    # Retrieve top chunks
+    query_emb = client.embeddings.create(input=user_question, model="text-embedding-3-small").data[0].embedding
     query_emb = np.array(query_emb).astype("float32").reshape(1, -1)
-    distances, indices = index.search(query_emb, k=5)
-    context = "\n".join([chunks[i] for i in indices[0]])
+    _, idx = index.search(query_emb, k=5)
+    context = "\n".join([chunks[i] for i in idx[0]])
 
+    # Prompt with strict formatting rules
     prompt = f"""
-You are a Saudi Labor Law expert. Use only the official Saudi Labor Law context below to answer clearly and accurately.
+You are a Saudi Labor Law expert.
+Answer strictly using the context below.
+
+Rules:
+- Only discuss Saudi Labor Law.
+- Never use Markdown or asterisks (**).
+- Use simple plain text with bullet points or short paragraphs.
+- Avoid any decorative characters like *, #, or underscores.
+- If the context does not contain an answer, reply with:
+  "This topic is not specified clearly in the Saudi Labor Law."
 
 CONTEXT:
 {context}
@@ -92,23 +97,37 @@ CONTEXT:
 QUESTION:
 {user_question}
 
-INSTRUCTIONS:
-- Answer directly, in plain language.
-- Summarize long clauses if needed.
-- If unclear in context, say "Not specified clearly in the law".
+Provide the answer below:
 """
 
-    completion = client.chat.completions.create(
+    res = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=temperature,
         messages=[
-            {"role": "system", "content": "You are a legal chatbot restricted to Saudi Labor Law."},
-            {"role": "user", "content": prompt},
-        ],
+            {"role": "system", "content": "You are a factual assistant restricted to the Saudi Labor Law."},
+            {"role": "user", "content": prompt}
+        ]
     )
 
-    answer = completion.choices[0].message.content.strip()
-    return jsonify({"answer": answer})
+    answer = res.choices[0].message.content.strip()
+
+    # Safety clean-up (remove any leftover markdown)
+    clean_answer = (
+        answer.replace("*", "")
+              .replace("_", "")
+              .replace("#", "")
+              .replace("**", "")
+              .replace("•", "-")
+    )
+
+    return jsonify({"answer": clean_answer})
+
+# -----------------------------
+# HEALTH CHECK
+# -----------------------------
+@app.route("/ping")
+def ping():
+    return jsonify({"status": "ok"})
 
 # -----------------------------
 # MAIN ENTRY
